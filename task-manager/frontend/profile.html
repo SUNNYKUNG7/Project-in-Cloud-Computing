@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ข้อมูลส่วนตัว | Task Manager</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="container" style="max-width:640px">
+    <div class="page-title"><h1>ข้อมูลส่วนตัว</h1></div>
+
+    <!-- 4.1 แก้ไขข้อมูลส่วนตัว -->
+    <div class="card">
+      <h2>แก้ไขข้อมูล</h2>
+      <form id="profileForm">
+        <label for="fullName">ชื่อ-นามสกุล</label>
+        <input id="fullName" required />
+        <label for="email">อีเมล</label>
+        <input id="email" type="email" required />
+        <p style="color:var(--muted); font-size:13px;">
+          สิทธิ์: <span id="role"></span> · สมัครเมื่อ: <span id="createdAt"></span>
+        </p>
+        <button class="btn" type="submit">บันทึก</button>
+        <div id="profileMsg" class="msg"></div>
+      </form>
+    </div>
+
+    <!-- 4.1 เปลี่ยนรหัสผ่าน -->
+    <div class="card">
+      <h2>เปลี่ยนรหัสผ่าน</h2>
+      <form id="pwForm">
+        <label for="currentPassword">รหัสผ่านปัจจุบัน</label>
+        <input id="currentPassword" type="password" required autocomplete="current-password" />
+        <label for="newPassword">รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label>
+        <input id="newPassword" type="password" minlength="6" required autocomplete="new-password" />
+        <label for="confirmPassword">ยืนยันรหัสผ่านใหม่</label>
+        <input id="confirmPassword" type="password" minlength="6" required autocomplete="new-password" />
+        <button class="btn" type="submit" style="margin-top:14px">เปลี่ยนรหัสผ่าน</button>
+        <div id="pwMsg" class="msg"></div>
+      </form>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+
+    if (requireLogin()) {
+      renderNavbar('profile');
+      loadProfile();
+    }
+
+    async function loadProfile() {
+      try {
+        const me = await api('/users/me');
+        $('fullName').value = me.fullName;
+        $('email').value = me.email;
+        $('role').textContent = me.role;
+        $('createdAt').textContent = formatDateTime(me.createdAt);
+      } catch (err) {
+        showMsg($('profileMsg'), err.message);
+      }
+    }
+
+    $('profileForm').onsubmit = async (e) => {
+      e.preventDefault();
+      try {
+        const body = { fullName: $('fullName').value, email: $('email').value };
+        const res = await api('/users/me', { method: 'PUT', body });
+        // อัปเดตชื่อที่แสดงบน navbar
+        auth.save(auth.token, { ...auth.user, fullName: body.fullName, email: body.email });
+        showMsg($('profileMsg'), res.message, 'success');
+        document.querySelector('.navbar .user').textContent = `${body.fullName} (${auth.user.role})`;
+      } catch (err) {
+        showMsg($('profileMsg'), err.message);
+      }
+    };
+
+    $('pwForm').onsubmit = async (e) => {
+      e.preventDefault();
+      if ($('newPassword').value !== $('confirmPassword').value) {
+        return showMsg($('pwMsg'), 'รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+      }
+      try {
+        const res = await api('/users/me/password', {
+          method: 'PUT',
+          body: { currentPassword: $('currentPassword').value, newPassword: $('newPassword').value },
+        });
+        showMsg($('pwMsg'), res.message, 'success');
+        $('pwForm').reset();
+      } catch (err) {
+        showMsg($('pwMsg'), err.message);
+      }
+    };
+  </script>
+</body>
+</html>

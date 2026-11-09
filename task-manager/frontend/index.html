@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>เข้าสู่ระบบ | Task Manager</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <h1>📋 Task Manager</h1>
+      <p class="sub">ระบบจัดการรายการงานส่วนบุคคล</p>
+
+      <form id="loginForm">
+        <label for="email">อีเมล</label>
+        <input id="email" type="email" required autocomplete="email" />
+
+        <label for="password">รหัสผ่าน</label>
+        <input id="password" type="password" required autocomplete="current-password" />
+
+        <button class="btn block" type="submit">เข้าสู่ระบบ</button>
+        <div id="msg" class="msg"></div>
+      </form>
+
+      <p style="text-align:center; margin-top:16px;">
+        ยังไม่มีบัญชี? <a href="register.html">สมัครสมาชิก</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    // ถ้า login อยู่แล้ว ไป dashboard เลย
+    if (auth.token) location.href = 'dashboard.html';
+
+    const msg = document.getElementById('msg');
+
+    document.getElementById('loginForm').onsubmit = async (e) => {
+      e.preventDefault();
+      hideMsg(msg);
+      try {
+        const data = await api('/auth/login', {
+          method: 'POST',
+          body: {
+            email: document.getElementById('email').value,
+            password: document.getElementById('password').value,
+          },
+        });
+        auth.save(data.token, data.user);
+        location.href = 'dashboard.html';
+      } catch (err) {
+        showMsg(msg, err.message);
+      }
+    };
+  </script>
+</body>
+</html>

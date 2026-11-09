@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dashboard | Task Manager</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="page-title">
+      <h1>Dashboard</h1>
+      <a class="btn" href="tasks.html?new=1">+ เพิ่มงาน</a>
+    </div>
+
+    <!-- 4.6 จำนวนงานแยกตามสถานะ -->
+    <div class="stats">
+      <div class="stat"><div class="label">งานทั้งหมด</div><div class="value" id="cTotal">-</div></div>
+      <div class="stat todo"><div class="label">To Do (ยังไม่เริ่ม)</div><div class="value" id="cTodo">-</div></div>
+      <div class="stat doing"><div class="label">Doing (กำลังทำ)</div><div class="value" id="cDoing">-</div></div>
+      <div class="stat done"><div class="label">Done (เสร็จสิ้น)</div><div class="value" id="cDone">-</div></div>
+      <div class="stat overdue"><div class="label">เลยกำหนดส่ง</div><div class="value" id="cOverdue">-</div></div>
+    </div>
+
+    <!-- 4.3 / 4.6 งานใกล้ครบกำหนด -->
+    <div class="card">
+      <h2>⏰ งานที่ใกล้ครบกำหนด (ภายใน 3 วัน)</h2>
+      <table>
+        <thead><tr><th>ชื่องาน</th><th>กำหนดส่ง</th><th>สถานะ</th></tr></thead>
+        <tbody id="upcomingBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 4.3 งานเลยกำหนด -->
+    <div class="card">
+      <h2>🚨 งานที่เลยกำหนดส่ง</h2>
+      <table>
+        <thead><tr><th>ชื่องาน</th><th>กำหนดส่ง</th><th>สถานะ</th></tr></thead>
+        <tbody id="overdueBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    if (requireLogin()) {
+      renderNavbar('dashboard');
+      loadSummary();
+    }
+
+    function rows(tasks, emptyText) {
+      if (!tasks.length) return `<tr><td colspan="3" class="empty">${emptyText}</td></tr>`;
+      return tasks.map((t) => `
+        <tr>
+          <td><a class="title-link" href="tasks.html?view=${t.id}">${escapeHtml(t.title)}</a></td>
+          <td>${formatDate(t.dueDate)}</td>
+          <td>${statusBadge(t.status)}</td>
+        </tr>`).join('');
+    }
+
+    async function loadSummary() {
+      try {
+        const { counts, upcoming, overdue } = await api('/tasks/summary');
+        cTotal.textContent = counts.total;
+        cTodo.textContent = counts.todo;
+        cDoing.textContent = counts.doing;
+        cDone.textContent = counts.done;
+        cOverdue.textContent = counts.overdue;
+        upcomingBody.innerHTML = rows(upcoming, 'ไม่มีงานที่ใกล้ครบกำหนด 🎉');
+        overdueBody.innerHTML = rows(overdue, 'ไม่มีงานที่เลยกำหนด 👍');
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

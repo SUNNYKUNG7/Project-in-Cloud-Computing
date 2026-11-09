@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>รายการงาน | Task Manager</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="page-title">
+      <h1>รายการงาน</h1>
+      <button class="btn" id="addBtn">+ เพิ่มงาน</button>
+    </div>
+
+    <div class="card">
+      <!-- 4.5 ค้นหา / กรอง / เรียงลำดับ -->
+      <div class="toolbar">
+        <input id="search" placeholder="🔍 ค้นหาจากชื่องาน..." />
+        <select id="filterStatus">
+          <option value="">ทุกสถานะ</option>
+          <option>To Do</option>
+          <option>Doing</option>
+          <option>Done</option>
+        </select>
+        <select id="filterDue">
+          <option value="">ทุกกำหนดส่ง</option>
+          <option value="upcoming">ใกล้ครบกำหนด</option>
+          <option value="overdue">เลยกำหนด</option>
+        </select>
+        <select id="sort">
+          <option value="due_asc">กำหนดส่ง: ใกล้ → ไกล</option>
+          <option value="due_desc">กำหนดส่ง: ไกล → ใกล้</option>
+          <option value="newest">สร้างล่าสุด</option>
+        </select>
+      </div>
+
+      <table>
+        <thead>
+          <tr>
+            <th>ชื่องาน</th>
+            <th>กำหนดส่ง</th>
+            <th>สถานะ</th>
+            <th class="hide-sm">แก้ไขล่าสุด</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="taskBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- Modal: เพิ่ม/แก้ไขงาน -->
+  <div class="modal-bg" id="formModal">
+    <div class="modal">
+      <h2 id="formTitle">เพิ่มงาน</h2>
+      <form id="taskForm">
+        <input type="hidden" id="taskId" />
+        <label for="title">ชื่องาน *</label>
+        <input id="title" maxlength="200" required />
+
+        <label for="description">รายละเอียด</label>
+        <textarea id="description"></textarea>
+
+        <label for="dueDate">วันครบกำหนด</label>
+        <input id="dueDate" type="date" />
+
+        <label for="status">สถานะ</label>
+        <select id="status">
+          <option>To Do</option>
+          <option>Doing</option>
+          <option>Done</option>
+        </select>
+
+        <div id="formMsg" class="msg"></div>
+        <div class="footer">
+          <button type="button" class="btn secondary" data-close>ยกเลิก</button>
+          <button type="submit" class="btn">บันทึก</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Modal: ดูรายละเอียดงาน -->
+  <div class="modal-bg" id="viewModal">
+    <div class="modal">
+      <h2 id="vTitle"></h2>
+      <div class="detail-row"><b>สถานะ</b> <span id="vStatus"></span></div>
+      <div class="detail-row"><b>กำหนดส่ง</b> <span id="vDue"></span></div>
+      <div class="detail-row"><b>สร้างเมื่อ</b> <span id="vCreated"></span></div>
+      <div class="detail-row"><b>แก้ไขล่าสุด</b> <span id="vUpdated"></span></div>
+      <div class="detail-row"><b>รายละเอียด</b></div>
+      <div class="detail-desc" id="vDesc"></div>
+      <div class="footer">
+        <button class="btn secondary" data-close>ปิด</button>
+        <button class="btn" id="vEdit">แก้ไข</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let tasks = [];
+
+    if (requireLogin()) {
+      renderNavbar('tasks');
+      init();
+    }
+
+    async function init() {
+      await loadTasks();
+
+      // เปิดจากลิงก์ภายนอก เช่น dashboard: tasks.html?new=1 หรือ ?view=5
+      const params = new URLSearchParams(location.search);
+      if (params.get('new')) openForm();
+      if (params.get('view')) openView(params.get('view'));
+    }
+
+    // ---------- โหลดรายการงาน (ตามตัวกรอง) ----------
+    async function loadTasks() {
+      const q = new URLSearchParams({
+        search: $('search').value.trim(),
+        status: $('filterStatus').value,
+        due: $('filterDue').value,
+        sort: $('sort').value,
+      });
+      try {
+        tasks = await api('/tasks?' + q);
+        renderTable();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    function renderTable() {
+      if (!tasks.length) {
+        $('taskBody').innerHTML = '<tr><td colspan="5" class="empty">ไม่พบรายการงาน</td></tr>';
+        return;
+      }
+      $('taskBody').innerHTML = tasks.map((t) => `
+        <tr>
+          <td><span class="title-link" onclick="openView(${t.id})">${escapeHtml(t.title)}</span></td>
+          <td>${formatDate(t.dueDate)}${dueBadge(t)}</td>
+          <td>
+            <!-- 4.4 เปลี่ยนสถานะได้ทันทีจากตาราง -->
+            <select class="status-select" onchange="changeStatus(${t.id}, this.value)">
+              ${['To Do', 'Doing', 'Done'].map((s) =>
+                `<option ${s === t.status ? 'selected' : ''}>${s}</option>`).join('')}
+            </select>
+          </td>
+          <td class="hide-sm">${formatDateTime(t.updatedAt)}</td>
+          <td class="actions">
+            <button class="btn sm secondary" onclick="openForm(${t.id})">แก้ไข</button>
+            <button class="btn sm danger" onclick="deleteTask(${t.id})">ลบ</button>
+          </td>
+        </tr>`).join('');
+    }
+
+    // ค้นหาแบบพิมพ์แล้วรอ 300ms (ไม่ยิง API ทุกตัวอักษร)
+    let searchTimer;
+    $('search').oninput = () => {
+      clearTimeout(searchTimer);
+      searchTimer = setTimeout(loadTasks, 300);
+    };
+    ['filterStatus', 'filterDue', 'sort'].forEach((id) => ($(id).onchange = loadTasks));
+
+    // ---------- Modal helpers ----------
+    function openModal(id) { $(id).classList.add('open'); }
+    function closeModals() { document.querySelectorAll('.modal-bg').forEach((m) => m.classList.remove('open')); }
+    document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = closeModals));
+    document.querySelectorAll('.modal-bg').forEach((bg) =>
+      bg.addEventListener('click', (e) => { if (e.target === bg) closeModals(); }));
+
+    // ---------- ดูรายละเอียด ----------
+    async function openView(id) {
+      try {
+        const t = await api('/tasks/' + id);
+        $('vTitle').textContent = t.title;
+        $('vStatus').innerHTML = statusBadge(t.status) + dueBadge(t);
+        $('vDue').textContent = formatDate(t.dueDate);
+        $('vCreated').textContent = formatDateTime(t.createdAt);
+        $('vUpdated').textContent = formatDateTime(t.updatedAt);
+        $('vDesc').textContent = t.description || '(ไม่มีรายละเอียด)';
+        $('vEdit').onclick = () => { closeModals(); openForm(t.id); };
+        openModal('viewModal');
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ---------- เพิ่ม / แก้ไข ----------
+    $('addBtn').onclick = () => openForm();
+
+    async function openForm(id) {
+      hideMsg($('formMsg'));
+      $('taskForm').reset();
+      $('taskId').value = '';
+      $('formTitle').textContent = 'เพิ่มงาน';
+
+      if (id) {
+        try {
+          const t = await api('/tasks/' + id);
+          $('formTitle').textContent = 'แก้ไขงาน';
+          $('taskId').value = t.id;
+          $('title').value = t.title;
+          $('description').value = t.description || '';
+          $('dueDate').value = t.dueDate ? t.dueDate.slice(0, 10) : '';
+          $('status').value = t.status;
+        } catch (err) {
+          return alert(err.message);
+        }
+      }
+      openModal('formModal');
+      $('title').focus();
+    }
+
+    $('taskForm').onsubmit = async (e) => {
+      e.preventDefault();
+      const id = $('taskId').value;
+      const body = {
+        title: $('title').value,
+        description: $('description').value,
+        dueDate: $('dueDate').value || null,
+        status: $('status').value,
+      };
+      try {
+        if (id) await api('/tasks/' + id, { method: 'PUT', body });
+        else await api('/tasks', { method: 'POST', body });
+        closeModals();
+        loadTasks();
+      } catch (err) {
+        showMsg($('formMsg'), err.message);
+      }
+    };
+
+    // ---------- เปลี่ยนสถานะ ----------
+    async function changeStatus(id, status) {
+      try {
+        await api(`/tasks/${id}/status`, { method: 'PATCH', body: { status } });
+        loadTasks();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    // ---------- ลบ ----------
+    async function deleteTask(id) {
+      const t = tasks.find((x) => x.id === id);
+      if (!confirm(`ต้องการลบงาน "${t?.title}" ใช่หรือไม่?`)) return;
+      try {
+        await api('/tasks/' + id, { method: 'DELETE' });
+        loadTasks();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>สมัครสมาชิก | Task Manager</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="auth-wrap">
+    <div class="card auth-card">
+      <h1>สมัครสมาชิก</h1>
+      <p class="sub">สร้างบัญชีเพื่อเริ่มจัดการงานของคุณ</p>
+
+      <form id="registerForm">
+        <label for="fullName">ชื่อ-นามสกุล</label>
+        <input id="fullName" required />
+
+        <label for="email">อีเมล</label>
+        <input id="email" type="email" required autocomplete="email" />
+
+        <label for="password">รหัสผ่าน (อย่างน้อย 6 ตัว)</label>
+        <input id="password" type="password" minlength="6" required autocomplete="new-password" />
+
+        <label for="confirm">ยืนยันรหัสผ่าน</label>
+        <input id="confirm" type="password" minlength="6" required autocomplete="new-password" />
+
+        <button class="btn block" type="submit">สมัครสมาชิก</button>
+        <div id="msg" class="msg"></div>
+      </form>
+
+      <p style="text-align:center; margin-top:16px;">
+        มีบัญชีแล้ว? <a href="index.html">เข้าสู่ระบบ</a>
+      </p>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const msg = document.getElementById('msg');
+
+    document.getElementById('registerForm').onsubmit = async (e) => {
+      e.preventDefault();
+      hideMsg(msg);
+
+      const password = document.getElementById('password').value;
+      if (password !== document.getElementById('confirm').value) {
+        return showMsg(msg, 'รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+      }
+
+      try {
+        await api('/auth/register', {
+          method: 'POST',
+          body: {
+            fullName: document.getElementById('fullName').value,
+            email: document.getElementById('email').value,
+            password,
+          },
+        });
+        showMsg(msg, 'สมัครสมาชิกสำเร็จ กำลังไปหน้าเข้าสู่ระบบ...', 'success');
+        setTimeout(() => (location.href = 'index.html'), 1200);
+      } catch (err) {
+        showMsg(msg, err.message);
+      }
+    };
+  </script>
+</body>
+</html>

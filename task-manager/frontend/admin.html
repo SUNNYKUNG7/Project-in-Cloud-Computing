@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>จัดการผู้ใช้ | Task Manager</title>
+  <link rel="stylesheet" href="css/style.css" />
+</head>
+<body>
+  <div class="container">
+    <div class="page-title"><h1>จัดการผู้ใช้งาน (Admin)</h1></div>
+
+    <!-- ภาพรวมระบบ -->
+    <div class="stats">
+      <div class="stat"><div class="label">ผู้ใช้ทั้งหมด</div><div class="value" id="sUsers">-</div></div>
+      <div class="stat"><div class="label">Admin</div><div class="value" id="sAdmins">-</div></div>
+      <div class="stat todo"><div class="label">งานทั้งหมดในระบบ</div><div class="value" id="sTasks">-</div></div>
+      <div class="stat done"><div class="label">งานที่เสร็จแล้ว</div><div class="value" id="sDone">-</div></div>
+    </div>
+
+    <div class="card">
+      <input id="search" placeholder="🔍 ค้นหาชื่อหรืออีเมล..." style="margin-bottom:14px" />
+      <table>
+        <thead>
+          <tr>
+            <th>#</th><th>ชื่อ-นามสกุล</th><th>อีเมล</th><th>Role</th>
+            <th>จำนวนงาน</th><th class="hide-sm">สมัครเมื่อ</th><th></th>
+          </tr>
+        </thead>
+        <tbody id="userBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <script src="js/api.js"></script>
+  <script>
+    const $ = (id) => document.getElementById(id);
+    let users = [];
+
+    if (requireLogin({ admin: true })) {
+      renderNavbar('admin');
+      loadStats();
+      loadUsers();
+    }
+
+    async function loadStats() {
+      try {
+        const s = await api('/admin/stats');
+        $('sUsers').textContent = s.users;
+        $('sAdmins').textContent = s.admins;
+        $('sTasks').textContent = s.tasks;
+        $('sDone').textContent = s.done;
+      } catch (err) { alert(err.message); }
+    }
+
+    async function loadUsers() {
+      try {
+        users = await api('/admin/users?search=' + encodeURIComponent($('search').value.trim()));
+        renderUsers();
+      } catch (err) { alert(err.message); }
+    }
+
+    function renderUsers() {
+      const meId = auth.user.id;
+      if (!users.length) {
+        $('userBody').innerHTML = '<tr><td colspan="7" class="empty">ไม่พบผู้ใช้</td></tr>';
+        return;
+      }
+      $('userBody').innerHTML = users.map((u) => {
+        const isMe = u.id === meId;
+        return `
+        <tr>
+          <td>${u.id}</td>
+          <td>${escapeHtml(u.fullName)}${isMe ? ' <small>(คุณ)</small>' : ''}</td>
+          <td>${escapeHtml(u.email)}</td>
+          <td>
+            ${isMe
+              ? `<span class="badge admin">${u.role}</span>`
+              : `<select class="status-select" onchange="changeRole(${u.id}, this.value)">
+                   <option ${u.role === 'User' ? 'selected' : ''}>User</option>
+                   <option ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+                 </select>`}
+          </td>
+          <td>${u.taskCount}</td>
+          <td class="hide-sm">${formatDateTime(u.createdAt)}</td>
+          <td class="actions">
+            ${isMe ? '' : `<button class="btn sm danger" onclick="deleteUser(${u.id})">ลบ</button>`}
+          </td>
+        </tr>`;
+      }).join('');
+    }
+
+    let t;
+    $('search').oninput = () => { clearTimeout(t); t = setTimeout(loadUsers, 300); };
+
+    async function changeRole(id, role) {
+      try {
+        await api(`/admin/users/${id}/role`, { method: 'PATCH', body: { role } });
+        loadStats();
+        loadUsers();
+      } catch (err) { alert(err.message); loadUsers(); }
+    }
+
+    async function deleteUser(id) {
+      const u = users.find((x) => x.id === id);
+      if (!confirm(`ลบผู้ใช้ "${u.fullName}" และงานทั้งหมด ${u.taskCount} รายการของเขา?`)) return;
+      try {
+        await api('/admin/users/' + id, { method: 'DELETE' });
+        loadStats();
+        loadUsers();
+      } catch (err) { alert(err.message); }
+    }
+  </script>
+</body>
+</html>
