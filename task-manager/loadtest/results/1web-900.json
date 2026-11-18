@@ -1,0 +1,15 @@
+{
+  "label": "1web-900",
+  "target_rate": 900,
+  "duration_s": 33.4,
+  "requests_sent": 23126,
+  "throughput_ok_per_s": 52.9,
+  "p50_ms": 0.3,
+  "p95_ms": 1023.4,
+  "max_ms": 7347.3,
+  "error_rate_pct": 92.37,
+  "dropped_iterations": 3876,
+  "web1": 1763,
+  "web2": 0,
+  "other": 21362
+}

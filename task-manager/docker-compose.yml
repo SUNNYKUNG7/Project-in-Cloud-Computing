@@ -1,11 +1,32 @@
 # ==========================================================
-# Personal Task Management System — Three-Tier (รันในเครื่อง)
-#   Presentation Tier : frontend (Nginx เสิร์ฟ HTML/CSS/JS + proxy /api)
-#   Application Tier  : backend  (Node.js + Express REST API)
-#   Data Tier         : db       (MySQL 8)
+# Personal Task Management System — Three-Tier + Load Balancer (รันในเครื่อง)
+#   Presentation Tier : frontend (Nginx = เสิร์ฟหน้าเว็บ + Load Balancer ส่ง /api ไป web1/web2)
+#   Application Tier  : web1, web2 (Node.js + Express REST API ตัวเดียวกัน 2 เครื่อง)
+#   Data Tier         : db (MySQL 8)
 # ใช้คำสั่ง:  docker compose up -d --build
 # เปิดเว็บ:   http://localhost:8080
 # ==========================================================
+
+# ค่าที่ web1 และ web2 ใช้ร่วมกัน (เขียนครั้งเดียว ใช้ซ้ำด้วย <<: *backend)
+x-backend: &backend
+  build: ./backend
+  restart: unless-stopped
+  environment: &backend-env
+    PORT: 3000
+    DB_HOST: db
+    DB_PORT: 3306
+    DB_NAME: ${DB_NAME}
+    DB_USER: ${DB_USER}
+    DB_PASSWORD: ${DB_PASSWORD}
+    JWT_SECRET: ${JWT_SECRET}          # ต้องเหมือนกันทุกเครื่อง token จึงใช้ข้ามเครื่องได้ (stateless)
+    ADMIN_EMAIL: ${ADMIN_EMAIL}
+    ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    TZ: Asia/Bangkok
+  cpus: ${BACKEND_CPUS:-0.25}          # จำกัด CPU ต่อเครื่อง ให้เห็นเพดาน/คอขวดตอน load test
+  depends_on:
+    db:
+      condition: service_healthy
+
 services:
   # ---------- Data Tier ----------
   db:
@@ -18,47 +39,45 @@ services:
       MYSQL_USER: ${DB_USER}
       MYSQL_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Bangkok
-    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=300
     volumes:
-      - db_data:/var/lib/mysql                         # เก็บข้อมูลถาวร (ลบ container ข้อมูลไม่หาย)
-      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro  # สร้างตารางตอนรันครั้งแรก
+      - db_data:/var/lib/mysql
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
     ports:
-      - "3307:3306"   # เปิดให้ต่อจาก DBeaver/Workbench ได้ที่ localhost:3307 (กันชนกับ MySQL ในเครื่อง)
+      - "3307:3306"   # ต่อจาก DBeaver/Workbench ได้ที่ localhost:3307
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-p${DB_ROOT_PASSWORD}"]
       interval: 5s
       timeout: 5s
       retries: 20
 
-  # ---------- Application Tier ----------
-  backend:
-    build: ./backend
-    container_name: tm-backend
-    restart: unless-stopped
+  # ---------- Application Tier (2 เครื่อง หลัง Load Balancer) ----------
+  web1:
+    <<: *backend
+    container_name: tm-web1
     environment:
-      PORT: 3000
-      DB_HOST: db            # ชื่อ service ของ MySQL (ตอนขึ้น K8s จะเปลี่ยนเป็นชื่อ Service)
-      DB_PORT: 3306
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      JWT_SECRET: ${JWT_SECRET}
-      ADMIN_EMAIL: ${ADMIN_EMAIL}
-      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
-      TZ: Asia/Bangkok
-    depends_on:
-      db:
-        condition: service_healthy   # รอให้ MySQL พร้อมก่อนค่อยเริ่ม backend
+      <<: *backend-env
+      BACKEND_NAME: web1               # ชื่อที่จะโชว์ใน header X-Backend
     ports:
-      - "3000:3000"   # ยิง API ตรงได้ (เช่นทดสอบด้วย Postman)
+      - "3001:3000"   # ตรวจ web1 ตรง ๆ: http://localhost:3001/api/health
 
-  # ---------- Presentation Tier ----------
+  web2:
+    <<: *backend
+    container_name: tm-web2
+    environment:
+      <<: *backend-env
+      BACKEND_NAME: web2
+    ports:
+      - "3002:3000"   # ตรวจ web2 ตรง ๆ ก่อนใส่ใน upstream: http://localhost:3002/api/health
+
+  # ---------- Presentation Tier + Load Balancer ----------
   frontend:
     build: ./frontend
     container_name: tm-frontend
     restart: unless-stopped
     depends_on:
-      - backend
+      - web1
+      - web2
     ports:
       - "8080:80"
 

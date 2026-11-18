@@ -1,0 +1,15 @@
+{
+  "label": "2web-900",
+  "target_rate": 900,
+  "duration_s": 36,
+  "requests_sent": 13025,
+  "throughput_ok_per_s": 127.8,
+  "p50_ms": 0.4,
+  "p95_ms": 6135.1,
+  "max_ms": 9997.8,
+  "error_rate_pct": 64.68,
+  "dropped_iterations": 13977,
+  "web1": 2678,
+  "web2": 1922,
+  "other": 8424
+}

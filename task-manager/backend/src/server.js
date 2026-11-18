@@ -2,12 +2,22 @@
 // Application Tier — REST API (Node.js + Express 5)
 // Express 5 จับ error จาก async function ให้อัตโนมัติ → ส่งต่อไป error handler ด้านล่าง
 // ==========================================================
+const os = require('os');
 const express = require('express');
 const cors = require('cors');
 const bcrypt = require('bcryptjs');
 const { pool, waitForDb } = require('./db');
 
+// ชื่อเครื่อง backend (web1 / web2) — ใช้ดูว่า Load Balancer ส่งคำขอไปเครื่องไหน
+const BACKEND_NAME = process.env.BACKEND_NAME || os.hostname();
+
 const app = express();
+// ใส่ header X-Backend ในทุกคำตอบ (เหมือน web1/web2 ในสไลด์ Week 2)
+app.use((req, res, next) => {
+  res.set('X-Backend', BACKEND_NAME);
+  res.set('Access-Control-Expose-Headers', 'X-Backend'); // ให้หน้าเว็บอ่าน header นี้ได้
+  next();
+});
 app.use(cors());
 app.use(express.json());
 
@@ -15,9 +25,9 @@ app.use(express.json());
 app.get('/api/health', async (req, res) => {
   try {
     await pool.query('SELECT 1');
-    res.json({ status: 'ok', db: 'connected' });
+    res.json({ status: 'ok', db: 'connected', backend: BACKEND_NAME });
   } catch {
-    res.status(503).json({ status: 'error', db: 'disconnected' });
+    res.status(503).json({ status: 'error', db: 'disconnected', backend: BACKEND_NAME });
   }
 });
 
@@ -46,11 +56,12 @@ async function ensureAdmin() {
   if (rows.length) return;
 
   const hash = await bcrypt.hash(password, 10);
-  await pool.query(
-    "INSERT INTO Users (FullName, Email, Password, Role) VALUES ('System Admin', ?, ?, 'Admin')",
+  // INSERT IGNORE: web1 กับ web2 เริ่มพร้อมกัน ถ้าอีกเครื่องสร้างไปก่อนแล้วจะไม่ error
+  const [result] = await pool.query(
+    "INSERT IGNORE INTO Users (FullName, Email, Password, Role) VALUES ('System Admin', ?, ?, 'Admin')",
     [email, hash]
   );
-  console.log(`👤 สร้างบัญชี Admin เริ่มต้นแล้ว: ${email}`);
+  if (result.affectedRows) console.log(`👤 สร้างบัญชี Admin เริ่มต้นแล้ว: ${email}`);
 }
 
 const PORT = Number(process.env.PORT || 3000);
@@ -58,7 +69,7 @@ const PORT = Number(process.env.PORT || 3000);
 (async () => {
   await waitForDb();
   await ensureAdmin();
-  app.listen(PORT, () => console.log(`🚀 Backend พร้อมที่ http://localhost:${PORT}`));
+  app.listen(PORT, () => console.log(`🚀 Backend ${BACKEND_NAME} พร้อมที่ :${PORT}`));
 })().catch((err) => {
   console.error(err);
   process.exit(1);
