@@ -8,27 +8,68 @@
 </head>
 <body>
   <div class="container">
-    <div class="page-title"><h1>จัดการผู้ใช้งาน (Admin)</h1></div>
+    <header class="page-head">
+      <div><p class="eyebrow">ผู้ดูแลระบบ</p><h1>จัดการผู้ใช้</h1></div>
+    </header>
 
     <!-- ภาพรวมระบบ -->
-    <div class="stats">
-      <div class="stat"><div class="label">ผู้ใช้ทั้งหมด</div><div class="value" id="sUsers">-</div></div>
-      <div class="stat"><div class="label">Admin</div><div class="value" id="sAdmins">-</div></div>
-      <div class="stat todo"><div class="label">งานทั้งหมดในระบบ</div><div class="value" id="sTasks">-</div></div>
-      <div class="stat done"><div class="label">งานที่เสร็จแล้ว</div><div class="value" id="sDone">-</div></div>
-    </div>
+    <section class="hero-band">
+      <div class="hero-left">
+        <span class="hero-icon" id="heroIcon"></span>
+        <div>
+          <p class="eyebrow">System overview</p>
+          <h2 style="font-size:20px">ภาพรวมระบบ</h2>
+          <p>จัดการบัญชีและติดตามจำนวนรายการ โดยไม่เปิดดูเนื้อหางานส่วนตัว</p>
+        </div>
+      </div>
+      <div class="hero-number"><strong id="sUsers">-</strong><span>บัญชีทั้งหมด</span></div>
+    </section>
 
-    <div class="card">
-      <input id="search" placeholder="🔍 ค้นหาชื่อหรืออีเมล..." style="margin-bottom:14px" />
-      <table>
-        <thead>
-          <tr>
-            <th>#</th><th>ชื่อ-นามสกุล</th><th>อีเมล</th><th>Role</th>
-            <th>จำนวนงาน</th><th class="hide-sm">สมัครเมื่อ</th><th></th>
-          </tr>
-        </thead>
-        <tbody id="userBody"></tbody>
-      </table>
+    <section class="metrics" id="metrics"></section>
+
+    <!-- สัดส่วนสถานะงาน -->
+    <section class="card card-pad" style="margin-top:18px">
+      <div style="display:flex;justify-content:space-between;align-items:baseline">
+        <strong>สถานะงานทั้งระบบ</strong><span class="muted" id="distTotal"></span>
+      </div>
+      <div class="dist-bar" id="distBar"></div>
+      <div class="dist-legend" id="distLegend"></div>
+    </section>
+
+    <!-- รายชื่อผู้ใช้ -->
+    <div class="section-head">
+      <div><p class="eyebrow">Account directory</p><h2>บัญชีผู้ใช้</h2></div>
+    </div>
+    <section class="toolbar">
+      <div class="search" id="searchWrap"><input id="search" placeholder="ค้นหาชื่อหรืออีเมล" aria-label="ค้นหาผู้ใช้" /></div>
+      <div class="seg" id="roleFilter" role="group" aria-label="กรองตามสิทธิ์">
+        <button type="button" data-role="" class="active">ทั้งหมด</button>
+        <button type="button" data-role="User">User</button>
+        <button type="button" data-role="Admin">Admin</button>
+      </div>
+      <span class="muted" id="userCount"></span>
+    </section>
+
+    <section class="card rows">
+      <div class="rows-scroll">
+        <div class="rows-head users-grid"><span>ผู้ใช้</span><span>สิทธิ์</span><span>จำนวนงาน</span><span>สมัครเมื่อ</span><span></span></div>
+        <div id="userBody"></div>
+      </div>
+    </section>
+    <p class="privacy-note" id="privacyNote">ข้อมูลรายละเอียดงานของผู้ใช้ยังคงเป็นส่วนตัว</p>
+  </div>
+
+  <!-- Modal: ยืนยันลบผู้ใช้ -->
+  <div class="modal-bg" id="deleteModal">
+    <div class="modal narrow">
+      <span class="modal-icon red" id="delIcon"></span>
+      <h2>ลบบัญชีผู้ใช้นี้หรือไม่?</h2>
+      <div class="del-user" id="delUser"></div>
+      <p class="modal-sub" id="delNote"></p>
+      <div class="footer">
+        <button class="btn secondary" data-close>ยกเลิก</button>
+        <button class="btn danger" id="confirmDelete">ลบบัญชี</button>
+      </div>
     </div>
   </div>
 
@@ -36,80 +77,123 @@
   <script>
     const $ = (id) => document.getElementById(id);
     let users = [];
+    let roleFilter = '';
 
     if (requireLogin({ admin: true })) {
       renderNavbar('admin');
+      $('heroIcon').innerHTML = icon('shield', 22);
+      $('searchWrap').insertAdjacentHTML('afterbegin', icon('users'));
+      $('privacyNote').insertAdjacentHTML('afterbegin', icon('shield'));
+      $('delIcon').innerHTML = icon('trash');
       loadStats();
       loadUsers();
     }
 
+    // ---------- ภาพรวม ----------
     async function loadStats() {
       try {
         const s = await api('/admin/stats');
         $('sUsers').textContent = s.users;
-        $('sAdmins').textContent = s.admins;
-        $('sTasks').textContent = s.tasks;
-        $('sDone').textContent = s.done;
-      } catch (err) { alert(err.message); }
+        const rate = s.tasks ? Math.round((s.done / s.tasks) * 100) + '%' : '-';
+        const cards = [
+          ['ผู้ดูแลระบบ', s.admins, 'shield', ''],
+          ['งานทั้งหมด', s.tasks, 'list', ''],
+          ['กำลังทำ', s.doing, 'activity', 'doing'],
+          ['เสร็จแล้ว', s.done, 'checks', 'done'],
+          ['อัตราทำเสร็จ', rate, 'check', 'done'],
+        ];
+        $('metrics').innerHTML = cards.map(([label, n, ic, cls]) => `
+          <div class="card metric"><span class="metric-icon ${cls}">${icon(ic)}</span>
+          <div><div class="metric-num">${n}</div><div class="metric-label">${label}</div></div></div>`).join('');
+
+        const parts = [['To Do', s.todo, 'var(--todo)'], ['Doing', s.doing, 'var(--doing)'], ['Done', s.done, 'var(--done)']];
+        $('distTotal').textContent = `${s.tasks} งาน`;
+        $('distBar').innerHTML = s.tasks
+          ? parts.filter(([, n]) => n > 0).map(([name, n, c]) => `<span style="width:${(n / s.tasks) * 100}%;background:${c}" title="${name} ${n}"></span>`).join('')
+          : '';
+        $('distLegend').innerHTML = parts.map(([name, n, c]) =>
+          `<span><i style="background:${c}"></i>${name} <b>${n}</b>${s.tasks ? ` (${Math.round((n / s.tasks) * 100)}%)` : ''}</span>`).join('');
+      } catch (err) { toast(err.message, 'error'); }
     }
 
+    // ---------- รายชื่อผู้ใช้ ----------
     async function loadUsers() {
       try {
         users = await api('/admin/users?search=' + encodeURIComponent($('search').value.trim()));
         renderUsers();
-      } catch (err) { alert(err.message); }
+      } catch (err) { toast(err.message, 'error'); }
     }
 
     function renderUsers() {
       const meId = auth.user.id;
-      if (!users.length) {
-        $('userBody').innerHTML = '<tr><td colspan="7" class="empty">ไม่พบผู้ใช้</td></tr>';
-        return;
-      }
-      $('userBody').innerHTML = users.map((u) => {
+      const list = roleFilter ? users.filter((u) => u.role === roleFilter) : users;
+      $('userCount').textContent = `${list.length} บัญชี`;
+      if (!list.length) { $('userBody').innerHTML = '<div class="empty">ไม่พบบัญชีที่ตรงกับการค้นหา</div>'; return; }
+
+      $('userBody').innerHTML = list.map((u) => {
         const isMe = u.id === meId;
         return `
-        <tr>
-          <td>${u.id}</td>
-          <td>${escapeHtml(u.fullName)}${isMe ? ' <small>(คุณ)</small>' : ''}</td>
-          <td>${escapeHtml(u.email)}</td>
-          <td>
-            ${isMe
-              ? `<span class="badge admin">${u.role}</span>`
-              : `<select class="status-select" onchange="changeRole(${u.id}, this.value)">
-                   <option ${u.role === 'User' ? 'selected' : ''}>User</option>
-                   <option ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
-                 </select>`}
-          </td>
-          <td>${u.taskCount}</td>
-          <td class="hide-sm">${formatDateTime(u.createdAt)}</td>
-          <td class="actions">
-            ${isMe ? '' : `<button class="btn sm danger" onclick="deleteUser(${u.id})">ลบ</button>`}
-          </td>
-        </tr>`;
+          <div class="rows-item users-grid">
+            <div class="user-cell">${avatarHtml(u.fullName, 36)}
+              <div><span class="user-name">${escapeHtml(u.fullName)}${isMe ? '<span class="you-tag">คุณ</span>' : ''}</span>
+              <span class="user-email">${escapeHtml(u.email)}</span></div>
+            </div>
+            <div>${isMe ? '<span class="role-pill">Admin</span>' : `
+              <select class="role-select ${u.role === 'Admin' ? 'admin' : ''}" aria-label="สิทธิ์ของ ${escapeHtml(u.fullName)}" onchange="changeRole(${u.id}, this.value)">
+                <option ${u.role === 'User' ? 'selected' : ''}>User</option>
+                <option ${u.role === 'Admin' ? 'selected' : ''}>Admin</option>
+              </select>`}</div>
+            <span class="task-count">${u.taskCount}</span>
+            <span class="muted">${formatDate(u.createdAt)}</span>
+            <div class="row-actions">${isMe ? '' : `<button class="icon-btn danger" title="ลบบัญชี" aria-label="ลบ ${escapeHtml(u.fullName)}" onclick="askDelete(${u.id})">${icon('trash', 16)}</button>`}</div>
+          </div>`;
       }).join('');
     }
 
     let t;
     $('search').oninput = () => { clearTimeout(t); t = setTimeout(loadUsers, 300); };
+    document.querySelectorAll('#roleFilter button').forEach((b) => {
+      b.onclick = () => {
+        roleFilter = b.dataset.role;
+        document.querySelectorAll('#roleFilter button').forEach((x) => x.classList.toggle('active', x === b));
+        renderUsers();
+      };
+    });
 
+    // ---------- เปลี่ยน Role ----------
     async function changeRole(id, role) {
+      const u = users.find((x) => x.id === id);
       try {
         await api(`/admin/users/${id}/role`, { method: 'PATCH', body: { role } });
-        loadStats();
-        loadUsers();
-      } catch (err) { alert(err.message); loadUsers(); }
+        toast(`เปลี่ยน ${u.fullName} เป็น ${role} แล้ว`);
+        loadStats(); loadUsers();
+      } catch (err) { toast(err.message, 'error'); loadUsers(); }
     }
 
-    async function deleteUser(id) {
-      const u = users.find((x) => x.id === id);
-      if (!confirm(`ลบผู้ใช้ "${u.fullName}" และงานทั้งหมด ${u.taskCount} รายการของเขา?`)) return;
-      try {
-        await api('/admin/users/' + id, { method: 'DELETE' });
-        loadStats();
-        loadUsers();
-      } catch (err) { alert(err.message); }
+    // ---------- ลบผู้ใช้ ----------
+    let pending = null;
+    function askDelete(id) {
+      pending = users.find((x) => x.id === id);
+      $('delUser').innerHTML = `${avatarHtml(pending.fullName, 40)}<div><div class="user-name">${escapeHtml(pending.fullName)}</div><div class="user-email">${escapeHtml(pending.email)}</div></div>`;
+      $('delNote').textContent = pending.taskCount
+        ? `รายการงาน ${pending.taskCount} รายการของบัญชีนี้จะถูกลบอย่างถาวรด้วย`
+        : 'การลบนี้กู้คืนไม่ได้';
+      $('deleteModal').classList.add('open');
     }
+    $('confirmDelete').onclick = async () => {
+      if (!pending) return;
+      setLoading($('confirmDelete'), true, 'กำลังลบ...');
+      try {
+        await api('/admin/users/' + pending.id, { method: 'DELETE' });
+        toast(`ลบ ${pending.fullName} แล้ว`);
+        closeModal(); loadStats(); loadUsers();
+      } catch (err) { toast(err.message, 'error'); }
+      setLoading($('confirmDelete'), false);
+    };
+    function closeModal() { $('deleteModal').classList.remove('open'); pending = null; }
+    document.querySelectorAll('[data-close]').forEach((b) => (b.onclick = closeModal));
+    $('deleteModal').addEventListener('click', (e) => { if (e.target === $('deleteModal')) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
   </script>
 </body>
 </html>

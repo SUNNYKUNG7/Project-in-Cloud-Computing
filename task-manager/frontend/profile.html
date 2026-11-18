@@ -3,42 +3,52 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>ข้อมูลส่วนตัว | Task Manager</title>
+  <title>บัญชีของฉัน | Task Manager</title>
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div class="container" style="max-width:640px">
-    <div class="page-title"><h1>ข้อมูลส่วนตัว</h1></div>
+  <div class="container">
+    <header class="page-head">
+      <div><p class="eyebrow">ข้อมูลส่วนตัว</p><h1>บัญชีของฉัน</h1></div>
+    </header>
 
-    <!-- 4.1 แก้ไขข้อมูลส่วนตัว -->
-    <div class="card">
-      <h2>แก้ไขข้อมูล</h2>
-      <form id="profileForm">
-        <label for="fullName">ชื่อ-นามสกุล</label>
-        <input id="fullName" required />
-        <label for="email">อีเมล</label>
-        <input id="email" type="email" required />
-        <p style="color:var(--muted); font-size:13px;">
-          สิทธิ์: <span id="role"></span> · สมัครเมื่อ: <span id="createdAt"></span>
-        </p>
-        <button class="btn" type="submit">บันทึก</button>
-        <div id="profileMsg" class="msg"></div>
-      </form>
-    </div>
+    <div class="profile-layout">
+      <!-- การ์ดสรุปบัญชี -->
+      <section class="card profile-card">
+        <div id="pAvatar"></div>
+        <p class="eyebrow" style="margin-top:14px">Personal account</p>
+        <h2 id="pName">-</h2>
+        <p class="profile-email" id="pEmail"></p>
+        <div style="margin-top:14px"><span class="role-pill" id="pRole"></span></div>
+        <div class="profile-note"><span id="pNoteIcon"></span><span>สมัครเมื่อ <span id="pCreated"></span><strong>ข้อมูลงานของคุณมองเห็นได้เฉพาะคุณ</strong></span></div>
+      </section>
 
-    <!-- 4.1 เปลี่ยนรหัสผ่าน -->
-    <div class="card">
-      <h2>เปลี่ยนรหัสผ่าน</h2>
-      <form id="pwForm">
-        <label for="currentPassword">รหัสผ่านปัจจุบัน</label>
-        <input id="currentPassword" type="password" required autocomplete="current-password" />
-        <label for="newPassword">รหัสผ่านใหม่ (อย่างน้อย 6 ตัว)</label>
-        <input id="newPassword" type="password" minlength="6" required autocomplete="new-password" />
-        <label for="confirmPassword">ยืนยันรหัสผ่านใหม่</label>
-        <input id="confirmPassword" type="password" minlength="6" required autocomplete="new-password" />
-        <button class="btn" type="submit" style="margin-top:14px">เปลี่ยนรหัสผ่าน</button>
-        <div id="pwMsg" class="msg"></div>
-      </form>
+      <div>
+        <!-- 4.1 แก้ไขข้อมูลส่วนตัว -->
+        <section class="card form-section">
+          <div class="form-section-head"><span class="head-icon" id="icProfile"></span><div><h2>ข้อมูลที่แสดง</h2><p>แก้ไขชื่อและอีเมลที่ใช้ในระบบ</p></div></div>
+          <form id="profileForm">
+            <div class="field"><label for="fullName">ชื่อที่แสดง</label><input id="fullName" maxlength="100" required /></div>
+            <div class="field"><label for="email">อีเมล</label><div class="input-icon" data-icon="mail"><input id="email" type="email" required /></div></div>
+            <div id="profileMsg" class="msg"></div>
+            <button class="btn" type="submit" id="saveBtn">บันทึกข้อมูล</button>
+          </form>
+        </section>
+
+        <!-- 4.1 เปลี่ยนรหัสผ่าน -->
+        <section class="card form-section">
+          <div class="form-section-head"><span class="head-icon" id="icKey"></span><div><h2>เปลี่ยนรหัสผ่าน</h2><p>ตั้งรหัสผ่านใหม่สำหรับบัญชีนี้</p></div></div>
+          <form id="pwForm">
+            <div class="field"><label for="currentPassword">รหัสผ่านปัจจุบัน</label><input id="currentPassword" type="password" required autocomplete="current-password" /></div>
+            <div class="field-grid">
+              <div class="field"><label for="newPassword">รหัสผ่านใหม่</label><input id="newPassword" type="password" minlength="6" required autocomplete="new-password" placeholder="อย่างน้อย 6 ตัว" /></div>
+              <div class="field"><label for="confirmPassword">ยืนยันรหัสผ่าน</label><input id="confirmPassword" type="password" minlength="6" required autocomplete="new-password" /></div>
+            </div>
+            <div id="pwMsg" class="msg"></div>
+            <button class="btn secondary" type="submit" id="pwBtn">อัปเดตรหัสผ่าน</button>
+          </form>
+        </section>
+      </div>
     </div>
   </div>
 
@@ -48,7 +58,20 @@
 
     if (requireLogin()) {
       renderNavbar('profile');
+      $('icProfile').innerHTML = icon('user');
+      $('icKey').innerHTML = icon('key');
+      $('pNoteIcon').innerHTML = icon('shield');
+      $('saveBtn').insertAdjacentHTML('afterbegin', icon('save', 16));
+      $('pwBtn').insertAdjacentHTML('afterbegin', icon('key', 16));
+      document.querySelectorAll('.input-icon').forEach((w) => w.insertAdjacentHTML('afterbegin', icon(w.dataset.icon)));
       loadProfile();
+    }
+
+    function fillCard(me) {
+      $('pAvatar').innerHTML = avatarHtml(me.fullName, 64);
+      $('pName').textContent = me.fullName;
+      $('pEmail').innerHTML = icon('mail') + escapeHtml(me.email);
+      $('pRole').textContent = me.role === 'Admin' ? 'ผู้ดูแลระบบ' : 'สมาชิก';
     }
 
     async function loadProfile() {
@@ -56,32 +79,34 @@
         const me = await api('/users/me');
         $('fullName').value = me.fullName;
         $('email').value = me.email;
-        $('role').textContent = me.role;
-        $('createdAt').textContent = formatDateTime(me.createdAt);
-      } catch (err) {
-        showMsg($('profileMsg'), err.message);
-      }
+        $('pCreated').textContent = formatDate(me.createdAt);
+        fillCard(me);
+      } catch (err) { showMsg($('profileMsg'), err.message); }
     }
 
     $('profileForm').onsubmit = async (e) => {
       e.preventDefault();
+      hideMsg($('profileMsg'));
+      const body = { fullName: $('fullName').value.trim(), email: $('email').value.trim() };
+      setLoading($('saveBtn'), true, 'กำลังบันทึก...');
       try {
-        const body = { fullName: $('fullName').value, email: $('email').value };
         const res = await api('/users/me', { method: 'PUT', body });
-        // อัปเดตชื่อที่แสดงบน navbar
         auth.save(auth.token, { ...auth.user, fullName: body.fullName, email: body.email });
+        fillCard({ ...body, role: auth.user.role });
+        // อัปเดตชื่อบนแถบด้านข้าง
+        const side = document.querySelector('.side-account-copy strong');
+        if (side) side.textContent = body.fullName;
         showMsg($('profileMsg'), res.message, 'success');
-        document.querySelector('.navbar .user').textContent = `${body.fullName} (${auth.user.role})`;
-      } catch (err) {
-        showMsg($('profileMsg'), err.message);
-      }
+      } catch (err) { showMsg($('profileMsg'), err.message); }
+      setLoading($('saveBtn'), false);
     };
 
     $('pwForm').onsubmit = async (e) => {
       e.preventDefault();
-      if ($('newPassword').value !== $('confirmPassword').value) {
-        return showMsg($('pwMsg'), 'รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
-      }
+      hideMsg($('pwMsg'));
+      if ($('newPassword').value.length < 6) return showMsg($('pwMsg'), 'รหัสผ่านใหม่ต้องมีอย่างน้อย 6 ตัวอักษร');
+      if ($('newPassword').value !== $('confirmPassword').value) return showMsg($('pwMsg'), 'รหัสผ่านใหม่ทั้งสองช่องไม่ตรงกัน');
+      setLoading($('pwBtn'), true, 'กำลังอัปเดต...');
       try {
         const res = await api('/users/me/password', {
           method: 'PUT',
@@ -89,9 +114,8 @@
         });
         showMsg($('pwMsg'), res.message, 'success');
         $('pwForm').reset();
-      } catch (err) {
-        showMsg($('pwMsg'), err.message);
-      }
+      } catch (err) { showMsg($('pwMsg'), err.message); }
+      setLoading($('pwBtn'), false);
     };
   </script>
 </body>

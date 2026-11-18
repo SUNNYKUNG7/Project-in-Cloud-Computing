@@ -7,26 +7,84 @@
   <link rel="stylesheet" href="css/style.css" />
 </head>
 <body>
-  <div class="auth-wrap">
-    <div class="card auth-card">
-      <h1>📋 Task Manager</h1>
-      <p class="sub">ระบบจัดการรายการงานส่วนบุคคล</p>
+  <div class="auth-screen">
+    <!-- ฝั่งซ้าย: ฟอร์ม -->
+    <main class="auth-panel">
+      <span class="brand"><span class="brand-mark" id="logoMark"></span><span>Task Manager<span class="brand-dot">.</span></span></span>
 
-      <form id="loginForm">
-        <label for="email">อีเมล</label>
-        <input id="email" type="email" required autocomplete="email" />
+      <div class="auth-intro">
+        <p class="eyebrow">Personal workspace</p>
+        <h1 id="introTitle">กลับมาจัดการงานต่อ</h1>
+        <p id="introSub">ทุกงานสำคัญ ชัดเจนในหน้าเดียว</p>
+      </div>
 
-        <label for="password">รหัสผ่าน</label>
-        <input id="password" type="password" required autocomplete="current-password" />
+      <!-- แท็บสลับ เข้าสู่ระบบ / สมัครสมาชิก -->
+      <div class="auth-tabs" role="tablist">
+        <button type="button" role="tab" id="tabLogin" aria-selected="true">เข้าสู่ระบบ</button>
+        <button type="button" role="tab" id="tabRegister" aria-selected="false">สมัครสมาชิก</button>
+      </div>
 
-        <button class="btn block" type="submit">เข้าสู่ระบบ</button>
-        <div id="msg" class="msg"></div>
+      <!-- ฟอร์มเข้าสู่ระบบ -->
+      <form id="loginForm" novalidate>
+        <div class="field">
+          <label for="email">อีเมล</label>
+          <div class="input-icon" data-icon="mail"><input id="email" type="email" placeholder="you@example.com" autocomplete="email" /></div>
+        </div>
+        <div class="field">
+          <label for="password">รหัสผ่าน</label>
+          <div class="input-icon pw-field" data-icon="lock">
+            <input id="password" type="password" placeholder="••••••••" autocomplete="current-password" />
+            <button type="button" class="pw-toggle" data-target="password" aria-label="แสดงรหัสผ่าน">แสดง</button>
+          </div>
+        </div>
+        <div id="loginMsg" class="msg" role="alert"></div>
+        <button class="btn block lg" type="submit" id="loginBtn">เข้าสู่ระบบ</button>
       </form>
 
-      <p style="text-align:center; margin-top:16px;">
-        ยังไม่มีบัญชี? <a href="register.html">สมัครสมาชิก</a>
-      </p>
-    </div>
+      <!-- ฟอร์มสมัครสมาชิก -->
+      <form id="registerForm" novalidate hidden>
+        <div class="field">
+          <label for="fullName">ชื่อ-นามสกุล</label>
+          <div class="input-icon" data-icon="user"><input id="fullName" placeholder="สมชาย ใจดี" autocomplete="name" /></div>
+        </div>
+        <div class="field">
+          <label for="regEmail">อีเมล</label>
+          <div class="input-icon" data-icon="mail"><input id="regEmail" type="email" placeholder="you@example.com" autocomplete="email" /></div>
+        </div>
+        <div class="field-grid">
+          <div class="field">
+            <label for="regPassword">รหัสผ่าน</label>
+            <div class="input-icon" data-icon="lock"><input id="regPassword" type="password" placeholder="อย่างน้อย 6 ตัว" autocomplete="new-password" /></div>
+          </div>
+          <div class="field">
+            <label for="regConfirm">ยืนยันรหัสผ่าน</label>
+            <div class="input-icon" data-icon="lock"><input id="regConfirm" type="password" placeholder="พิมพ์อีกครั้ง" autocomplete="new-password" /></div>
+          </div>
+        </div>
+        <div id="regMsg" class="msg" role="alert"></div>
+        <button class="btn block lg" type="submit" id="regBtn">สร้างบัญชี</button>
+      </form>
+
+      <p class="auth-foot">บัญชีและรายการงานของคุณเป็นข้อมูลส่วนตัว</p>
+    </main>
+
+    <!-- ฝั่งขวา: ภาพตกแต่ง (ซ่อนบนมือถือ) -->
+    <aside class="auth-art" aria-hidden="true">
+      <div class="art-overline"><span class="art-dot"></span>YOUR DAY, IN FOCUS</div>
+      <div>
+        <div class="art-copy">
+          <p class="art-index">01 / PLAN WITH CLARITY</p>
+          <h2>งานชัด<br>วันก็เบาขึ้น</h2>
+          <p>เก็บงานสำคัญไว้ในที่เดียว แล้วค่อย ๆ ทำให้เสร็จตามจังหวะของคุณ</p>
+        </div>
+        <div class="art-list">
+          <div class="art-task done"><span class="art-check">✓</span><span>วางแผนสัปดาห์นี้</span><span class="art-date">DONE</span></div>
+          <div class="art-task"><span class="art-check"></span><span>เตรียมงานชิ้นสำคัญ</span><span class="art-date">TODAY</span></div>
+          <div class="art-task"><span class="art-check"></span><span>พักหายใจสักนิด</span><span class="art-date">NEXT</span></div>
+        </div>
+      </div>
+      <div class="art-foot"><span>Task Manager.</span><span>WORK AT YOUR PACE</span></div>
+    </aside>
   </div>
 
   <script src="js/api.js"></script>
@@ -34,24 +92,70 @@
     // ถ้า login อยู่แล้ว ไป dashboard เลย
     if (auth.token) location.href = 'dashboard.html';
 
-    const msg = document.getElementById('msg');
+    const $ = (id) => document.getElementById(id);
+    $('logoMark').innerHTML = icon('logo');
+    // ใส่ไอคอนในช่องกรอก
+    document.querySelectorAll('.input-icon').forEach((w) => w.insertAdjacentHTML('afterbegin', icon(w.dataset.icon)));
+    bindPasswordToggles();
 
-    document.getElementById('loginForm').onsubmit = async (e) => {
+    // ---------- สลับแท็บ ----------
+    function showTab(tab) {
+      const isLogin = tab === 'login';
+      $('tabLogin').setAttribute('aria-selected', isLogin);
+      $('tabRegister').setAttribute('aria-selected', !isLogin);
+      $('loginForm').hidden = !isLogin;
+      $('registerForm').hidden = isLogin;
+      $('introTitle').textContent = isLogin ? 'กลับมาจัดการงานต่อ' : 'เริ่มต้นจัดงานของคุณ';
+      $('introSub').textContent = isLogin ? 'ทุกงานสำคัญ ชัดเจนในหน้าเดียว' : 'สร้างบัญชีครั้งเดียว ใช้ได้ทันที';
+      history.replaceState(null, '', isLogin ? 'index.html' : 'index.html#register');
+      (isLogin ? $('email') : $('fullName')).focus();
+    }
+    $('tabLogin').onclick = () => showTab('login');
+    $('tabRegister').onclick = () => showTab('register');
+    if (location.hash === '#register') showTab('register');
+
+    // ---------- เข้าสู่ระบบ ----------
+    $('loginForm').onsubmit = async (e) => {
       e.preventDefault();
-      hideMsg(msg);
+      hideMsg($('loginMsg'));
+      const email = $('email').value.trim();
+      const password = $('password').value;
+      if (!email || !password) return showMsg($('loginMsg'), 'กรุณากรอกอีเมลและรหัสผ่าน');
+
+      setLoading($('loginBtn'), true, 'กำลังเข้าสู่ระบบ...');
       try {
-        const data = await api('/auth/login', {
-          method: 'POST',
-          body: {
-            email: document.getElementById('email').value,
-            password: document.getElementById('password').value,
-          },
-        });
+        const data = await api('/auth/login', { method: 'POST', body: { email, password } });
         auth.save(data.token, data.user);
         location.href = 'dashboard.html';
       } catch (err) {
-        showMsg(msg, err.message);
+        showMsg($('loginMsg'), err.message);
+        setLoading($('loginBtn'), false);
       }
+    };
+
+    // ---------- สมัครสมาชิก ----------
+    $('registerForm').onsubmit = async (e) => {
+      e.preventDefault();
+      hideMsg($('regMsg'));
+      const fullName = $('fullName').value.trim();
+      const email = $('regEmail').value.trim();
+      const password = $('regPassword').value;
+      if (!fullName || !email || !password) return showMsg($('regMsg'), 'กรุณากรอกข้อมูลให้ครบ');
+      if (password.length < 6) return showMsg($('regMsg'), 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร');
+      if (password !== $('regConfirm').value) return showMsg($('regMsg'), 'รหัสผ่านทั้งสองช่องไม่ตรงกัน');
+
+      setLoading($('regBtn'), true, 'กำลังสร้างบัญชี...');
+      try {
+        await api('/auth/register', { method: 'POST', body: { fullName, email, password } });
+        $('registerForm').reset();
+        showTab('login');
+        $('email').value = email;
+        showMsg($('loginMsg'), 'สมัครสมาชิกสำเร็จ เข้าสู่ระบบได้เลย', 'success');
+        $('password').focus();
+      } catch (err) {
+        showMsg($('regMsg'), err.message);
+      }
+      setLoading($('regBtn'), false);
     };
   </script>
 </body>
